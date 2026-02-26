@@ -1,0 +1,5 @@
+{
+  "name": "중량물 하중 계산기",
+  "description": "중량물 취급 작업 전 하중 검토 및 안전성 판정을 위한 계산기입니다.",
+  "requestFramePermissions": []
+}
