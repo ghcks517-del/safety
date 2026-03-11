@@ -1,0 +1,37 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 배경: 주황색 -->
+  <rect width="512" height="512" rx="100" fill="#f97316"/>
+  
+  <!-- 슬링벨트 및 중량물 (중앙) -->
+  <g transform="translate(256, 210)">
+    <!-- 크레인 훅 -->
+    <path d="M-25,-120 L25,-120 L25,-90 A25,25 0 0,1 -25,-90 Z" fill="#e2e8f0"/>
+    <circle cx="0" cy="-105" r="6" fill="#94a3b8"/>
+    
+    <!-- 슬링벨트 (보라색) -->
+    <path d="M0,-90 L-90,80" stroke="#7c3aed" stroke-width="15" stroke-linecap="round"/>
+    <path d="M0,-90 L90,80" stroke="#7c3aed" stroke-width="15" stroke-linecap="round"/>
+    
+    <!-- 중량물 (검은색) -->
+    <rect x="-110" y="80" width="220" height="130" rx="12" fill="#000000"/>
+    <!-- 중량물 디테일 -->
+    <path d="M-110,120 L110,120" stroke="#333333" stroke-width="2"/>
+    <path d="M-110,160 L110,160" stroke="#333333" stroke-width="2"/>
+    <rect x="-90" y="100" width="180" height="90" rx="4" fill="none" stroke="#333333" stroke-width="2" stroke-dasharray="8,4"/>
+  </g>
+  
+  <!-- 계산기 아이콘 (왼쪽 아래 레이어) -->
+  <g transform="translate(50, 320)">
+    <!-- 계산기 본체 -->
+    <rect width="140" height="170" rx="20" fill="#ffffff" stroke="#1e293b" stroke-width="10"/>
+    <!-- 계산기 화면 -->
+    <rect x="25" y="25" width="90" height="35" rx="5" fill="#cbd5e1"/>
+    <!-- 계산기 버튼들 -->
+    <circle cx="45" cy="85" r="12" fill="#4f46e5"/>
+    <circle cx="75" cy="85" r="12" fill="#4f46e5"/>
+    <circle cx="105" cy="85" r="12" fill="#4f46e5"/>
+    <circle cx="45" cy="120" r="12" fill="#4f46e5"/>
+    <circle cx="75" cy="120" r="12" fill="#4f46e5"/>
+    <circle cx="105" cy="120" r="12" fill="#4f46e5"/>
+  </g>
+</svg>
