@@ -1,12 +1,7 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { useState, useEffect } from 'react';
 import { Calculator, AlertTriangle, CheckCircle2, Info, ChevronRight, Settings2, Link as LinkIcon, Layers, Anchor, CircleDot, Box } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { WEB_BELTS, ROUND_SLINGS, SHACKLES, EYEBOLTS, type SlingSpec, type ToolSpec } from './constants';
+import { WEB_BELTS, ROUND_SLINGS, SHACKLES, EYEBOLTS, WIRE_ROPES_6X37_FC, WIRE_ROPES_6X4_IWRC } from './constants';
 
 const SLING_METHODS = [
   { id: 'straight', name: '일자 견인', factor: 1.0 },
@@ -15,6 +10,15 @@ const SLING_METHODS = [
   { id: 'uu_shape', name: 'UU자 견인', factor: 4.0 },
   { id: 'triangle_45', name: '△자 견인45°', factor: 1.8 },
   { id: 'triangle_90', name: '△자 견인90°', factor: 1.4 },
+];
+
+const TERMINATION_METHODS = [
+  { id: 'socket', name: '소켓트 가공', efficiency: 1.0 },
+  { id: 'swaging', name: '스웨이징 가공', efficiency: 0.95 },
+  { id: 'lock', name: '록크 가공', efficiency: 0.90 },
+  { id: 'clip', name: '클립 가공', efficiency: 0.75 },
+  { id: 'wedge', name: '웨지 가공', efficiency: 0.75 },
+  { id: 'splicing', name: '슬링 가공', efficiency: 0.80 },
 ];
 
 const TENSION_FACTORS: Record<number, number> = {
@@ -42,11 +46,14 @@ export default function App() {
   const [weight, setWeight] = useState<number>(1.0);
   const [machineType, setMachineType] = useState<string>('천장크레인');
   const [machineCapacity, setMachineCapacity] = useState<number>(5);
+  const [maxLiftingCapacity, setMaxLiftingCapacity] = useState<number>(0);
   const [angle, setAngle] = useState<number>(60);
   const [slingCount, setSlingCount] = useState<number>(2);
   
   // Selection States
-  const [beltType, setBeltType] = useState<'web' | 'round'>('web');
+  const [beltType, setBeltType] = useState<'web' | 'round' | 'wire'>('web');
+  const [wireRopeType, setWireRopeType] = useState<'6X37_FC' | '6X4_IWRC'>('6X37_FC');
+  const [terminationId, setTerminationId] = useState<string>(TERMINATION_METHODS[2].id);
   const [selectedSlingId, setSelectedSlingId] = useState<string>(WEB_BELTS[1].id);
   const [slingMethodId, setSlingMethodId] = useState<string>(SLING_METHODS[0].id);
   const [useShackle, setUseShackle] = useState<boolean>(false);
@@ -64,12 +71,16 @@ export default function App() {
 
   useEffect(() => {
     // 1. Calculate System Capacity (Weakest Link)
-    const slingList = beltType === 'web' ? WEB_BELTS : ROUND_SLINGS;
+    let slingList = WEB_BELTS;
+    if (beltType === 'web') slingList = WEB_BELTS;
+    else if (beltType === 'round') slingList = ROUND_SLINGS;
+    else slingList = wireRopeType === '6X37_FC' ? WIRE_ROPES_6X37_FC : WIRE_ROPES_6X4_IWRC;
+
     const currentSling = slingList.find(s => s.id === selectedSlingId);
     const currentMethod = SLING_METHODS.find(m => m.id === slingMethodId);
     const currentShackle = SHACKLES.find(s => s.id === selectedShackleId);
     const currentEyebolt = EYEBOLTS.find(e => e.id === selectedEyeboltId);
-    const linkName = `슬링벨트(${currentMethod?.name})`;
+    const linkName = beltType === 'wire' ? `와이어로프(${currentMethod?.name})` : `슬링벨트(${currentMethod?.name})`;
 
     // 2. Calculate Tension and System Capacity
     const weightInKg = weight * 1000;
@@ -84,20 +95,22 @@ export default function App() {
       setWeakestLink('지게차 허용 하중 (85% 기준)');
       setSystemCapacity(forkliftSafetyLimit * 1000);
     } else {
-      // New formula for Cranes: ((Breaking Load * Sling Count) / (6 * Tension Factor)) * Efficiency
+      // New formula for Cranes: ((Breaking Load * Sling Count * Termination Efficiency) / (6 * Tension Factor)) * Efficiency
       const breakingLoad = currentSling?.breakingLoad || 0;
       const efficiency = currentMethod?.factor || 1.0;
+      const terminationEfficiency = beltType === 'wire' ? (TERMINATION_METHODS.find(t => t.id === terminationId)?.efficiency || 1.0) : 1.0;
       
-      const calculatedSystemCapacityTon = ((breakingLoad * slingCount) / (6 * tensionFactor)) * efficiency;
+      const calculatedSystemCapacityTon = ((breakingLoad * slingCount * terminationEfficiency) / (6 * tensionFactor)) * efficiency;
       const calculatedSystemCapacityKg = calculatedSystemCapacityTon * 1000;
       
       setSystemCapacity(calculatedSystemCapacityKg);
 
       // 3. Safety Check
-      const isSlingSafe = calculatedSystemCapacityTon > (weight + 0.5);
+      const safetyMargin = beltType === 'wire' ? 0 : 0.5;
+      const isSlingSafe = calculatedSystemCapacityTon > (weight + safetyMargin);
       setSlingSafety({ 
         isSafe: isSlingSafe, 
-        reason: isSlingSafe ? '' : `시스템 용량(${(calculatedSystemCapacityTon).toFixed(2)}t)이 (총중량+0.5)t을 초과하지 못함` 
+        reason: isSlingSafe ? '' : `안전 하중(${(calculatedSystemCapacityTon).toFixed(2)}t)이 총중량(${weight}t)을 초과하지 못함` 
       });
 
       const shackleLiftingAngle = 90 - (180 - angle) / 2;
@@ -111,12 +124,12 @@ export default function App() {
       else shackleAdj = 1;
 
       const shackleCapacityTon = ((currentShackle?.swl || 0) / 1000) * shackleAdj * slingCount;
-      const isShackleSafe = !useShackle || shackleCapacityTon > (weight + 0.5);
+      const isShackleSafe = !useShackle || shackleCapacityTon > (weight + safetyMargin);
       
       setShackleSafety({
         isSafe: isShackleSafe,
         isUsed: useShackle,
-        reason: !useShackle ? '' : shackleLiftingAngle >= 91 ? '인양각도 91° 이상' : !isShackleSafe ? `허용하중(${shackleCapacityTon.toFixed(2)}t)이 (총중량+0.5)t 미달` : ''
+        reason: !useShackle ? '' : shackleLiftingAngle >= 91 ? '인양각도 91° 이상' : !isShackleSafe ? `허용하중(${shackleCapacityTon.toFixed(2)}t) 미달` : ''
       });
 
       // Eyebolt Adjustment Factor
@@ -127,54 +140,67 @@ export default function App() {
       else eyeboltAdj = 1;
 
       const eyeboltCapacityTon = ((currentEyebolt?.swl || 0) / 1000) * eyeboltAdj * slingCount;
-      const isEyeboltSafe = !useEyebolt || eyeboltCapacityTon > (weight + 0.5);
+      const isEyeboltSafe = !useEyebolt || eyeboltCapacityTon > (weight + safetyMargin);
 
       setEyeboltSafety({
         isSafe: isEyeboltSafe,
         isUsed: useEyebolt,
-        reason: !useEyebolt ? '' : shackleLiftingAngle >= 91 ? '인양각도 91° 이상' : !isEyeboltSafe ? `허용하중(${eyeboltCapacityTon.toFixed(2)}t)이 (총중량+0.5)t 미달` : ''
+        reason: !useEyebolt ? '' : shackleLiftingAngle >= 91 ? '인양각도 91° 이상' : !isEyeboltSafe ? `허용하중(${eyeboltCapacityTon.toFixed(2)}t) 미달` : ''
       });
 
-      const isMachineSafe = (weight + 0.5) <= machineCapacity * 0.9;
+      let isMachineSafe = false;
+      if (machineType === '이동식 크레인') {
+        isMachineSafe = (maxLiftingCapacity * 0.7) > (weight + 0.5);
+      } else {
+        isMachineSafe = (weight + safetyMargin) <= machineCapacity * 0.9;
+      }
       
       setIsSafe(isSlingSafe && isMachineSafe && isShackleSafe && isEyeboltSafe);
       
       if (!isMachineSafe) {
-        setWeakestLink('기계 정격 하중 초과 (안전율 고려)');
+        setWeakestLink(machineType === '이동식 크레인' ? '크레인 양중 능력 초과' : '기계 정격 하중 초과 (안전율 고려)');
       } else if (!isShackleSafe) {
         setWeakestLink('샤클 안전 기준 미달');
       } else if (!isEyeboltSafe) {
         setWeakestLink('아이볼트 안전 기준 미달');
       } else if (!isSlingSafe) {
-        setWeakestLink('슬링벨트 하중 한계 초과 (파단하중 기준)');
+        setWeakestLink(beltType === 'wire' ? '와이어로프 하중 한계 초과' : '슬링벨트 하중 한계 초과');
       } else {
         setWeakestLink(linkName);
       }
     }
-  }, [weight, angle, slingCount, machineType, machineCapacity, beltType, selectedSlingId, slingMethodId, useShackle, selectedShackleId, useEyebolt, selectedEyeboltId]);
+  }, [weight, angle, slingCount, machineType, machineCapacity, maxLiftingCapacity, beltType, wireRopeType, terminationId, selectedSlingId, slingMethodId, useShackle, selectedShackleId, useEyebolt, selectedEyeboltId]);
 
   // Reset selected sling when belt type changes
   useEffect(() => {
-    const slingList = beltType === 'web' ? WEB_BELTS : ROUND_SLINGS;
+    let slingList = WEB_BELTS;
+    if (beltType === 'web') slingList = WEB_BELTS;
+    else if (beltType === 'round') slingList = ROUND_SLINGS;
+    else slingList = wireRopeType === '6X37_FC' ? WIRE_ROPES_6X37_FC : WIRE_ROPES_6X4_IWRC;
+    
     setSelectedSlingId(slingList[0].id);
-  }, [beltType]);
+  }, [beltType, wireRopeType]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
-        <div className="max-w-md mx-auto flex items-center gap-3">
-          <div className="bg-indigo-600 p-2 rounded-lg">
-            <Calculator className="w-5 h-5 text-white" />
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-md mx-auto px-4 py-6 flex items-center gap-3">
+          <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
+            <Calculator className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">중량물 하중 계산기</h1>
+          <div>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">중량물 하중검토 계산기</h1>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lifting Safety Calculator</p>
+          </div>
         </div>
       </header>
 
       <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
         {/* Visual Guide */}
         {machineType !== '지게차' && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <div className="flex justify-between items-end mb-4">
               <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">시각적 가이드</span>
               <span className="text-xs text-indigo-600 font-medium flex items-center gap-1">
@@ -293,7 +319,24 @@ export default function App() {
               <span className="text-4xl font-black text-indigo-600">{angle}°</span>
             </div>
           </div>
-        )}
+
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-2">
+            <label className="text-xs font-bold text-slate-500 ml-1 flex justify-between items-center">
+              <span>줄걸이 각도 (수평각)</span>
+              <span className="text-indigo-600 font-bold">{angle}°</span>
+            </label>
+            <input 
+              type="range" 
+              min="30" 
+              max="90" 
+              step="5"
+              value={angle} 
+              onChange={(e) => setAngle(Number(e.target.value))}
+              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+            />
+          </div>
+        </div>
+      )}
 
         {/* Basic Info Form */}
         <div className="space-y-4">
@@ -324,7 +367,7 @@ export default function App() {
                 <option value="이동식 크레인">이동식 크레인</option>
               </select>
             </div>
-            <div className="space-y-1.5 col-span-2">
+            <div className={`space-y-1.5 ${machineType === '이동식 크레인' ? 'col-span-2' : 'col-span-2'}`}>
               <label className="text-xs font-bold text-slate-500 ml-1">사용 기계 재원 (Ton)</label>
               <input 
                 type="number" 
@@ -336,25 +379,25 @@ export default function App() {
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold"
               />
             </div>
-          </div>
 
-          {machineType !== '지게차' && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-500 ml-1 flex justify-between">
-                <span>줄걸이 각도 (수평각)</span>
-                <span className="text-indigo-600 font-bold">{angle}°</span>
-              </label>
-              <input 
-                type="range" 
-                min="30" 
-                max="90" 
-                step="5"
-                value={angle} 
-                onChange={(e) => setAngle(Number(e.target.value))}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-            </div>
-          )}
+            {machineType === '이동식 크레인' && (
+              <div className="space-y-1.5 col-span-2">
+                <label className="text-xs font-bold text-slate-500 ml-1">최대 양중 능력 (Ton)</label>
+                <input 
+                  type="number" 
+                  step="0.1"
+                  value={maxLiftingCapacity || ''} 
+                  onChange={(e) => setMaxLiftingCapacity(e.target.value === '' ? 0 : Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
+                  placeholder="예: 2.5"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold"
+                />
+                <p className="text-[10px] text-rose-500 font-bold ml-1">
+                  ※ 작업 시 최대 붐 길이, 반경, 높이를 고려하여 장비 재원표 확인
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Tool Selection Section */}
@@ -365,32 +408,69 @@ export default function App() {
             </h2>
             
             {/* Belt Type Selection */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
-              <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-indigo-500" /> 벨트 종류
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setBeltType('web')}
-                  className={`py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
-                    beltType === 'web' 
-                      ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-sm' 
-                      : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
-                  }`}
-                >
-                  웹 벨트
-                </button>
-                <button
-                  onClick={() => setBeltType('round')}
-                  className={`py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
-                    beltType === 'round' 
-                      ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-sm' 
-                      : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
-                  }`}
-                >
-                  라운드 슬링
-                </button>
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-4">
+              <div className="space-y-3">
+                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-indigo-500" /> 벨트 종류
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      if (beltType === 'wire') setBeltType('web');
+                    }}
+                    className={`py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
+                      beltType !== 'wire' 
+                        ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-sm' 
+                        : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    슬링벨트
+                  </button>
+                  <button
+                    onClick={() => setBeltType('wire')}
+                    className={`py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
+                      beltType === 'wire' 
+                        ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-sm' 
+                        : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    와이어
+                  </button>
+                </div>
               </div>
+
+              {/* Sub-selection for Sling Belt */}
+              {beltType !== 'wire' && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="pt-3 border-t border-slate-100 space-y-3"
+                >
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">상세 종류 선택</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setBeltType('web')}
+                      className={`py-2.5 px-4 rounded-xl font-bold text-xs transition-all border-2 ${
+                        beltType === 'web' 
+                          ? 'bg-white border-indigo-400 text-indigo-600 shadow-sm' 
+                          : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      웹 벨트
+                    </button>
+                    <button
+                      onClick={() => setBeltType('round')}
+                      className={`py-2.5 px-4 rounded-xl font-bold text-xs transition-all border-2 ${
+                        beltType === 'round' 
+                          ? 'bg-white border-indigo-400 text-indigo-600 shadow-sm' 
+                          : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      라운드
+                    </button>
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Specification Selection */}
@@ -398,24 +478,82 @@ export default function App() {
               <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                 <Settings2 className="w-4 h-4 text-indigo-500" /> 규격(안전하중)
               </label>
-              <div className="relative">
-                <select 
-                  value={selectedSlingId}
-                  onChange={(e) => setSelectedSlingId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold appearance-none"
-                >
-                  {(beltType === 'web' ? WEB_BELTS : ROUND_SLINGS).map(s => (
-                    <option key={s.id} value={s.id}>{s.width} - {(s.swl/1000).toFixed(0)}ton</option>
-                  ))}
-                </select>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <ChevronRight className="w-4 h-4 text-slate-400 rotate-90" />
+              
+              {beltType === 'wire' ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <select 
+                        value={wireRopeType}
+                        onChange={(e) => setWireRopeType(e.target.value as any)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold appearance-none text-sm"
+                      >
+                        <option value="6X37_FC">6 X 37 + FC</option>
+                        <option value="6X4_IWRC">6 X 4 + IWRC</option>
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <ChevronRight className="w-4 h-4 text-slate-400 rotate-90" />
+                      </div>
+                    </div>
+                    <div className="relative">
+                      <select 
+                        value={selectedSlingId}
+                        onChange={(e) => setSelectedSlingId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold appearance-none text-sm"
+                      >
+                        {(wireRopeType === '6X37_FC' ? WIRE_ROPES_6X37_FC : WIRE_ROPES_6X4_IWRC).map(s => (
+                          <option key={s.id} value={s.id}>{s.width}</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <ChevronRight className="w-4 h-4 text-slate-400 rotate-90" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Termination Method Dropdown */}
+                  <div className="relative">
+                    <select 
+                      value={terminationId}
+                      onChange={(e) => setTerminationId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold appearance-none text-sm"
+                    >
+                      {TERMINATION_METHODS.map(t => (
+                        <option key={t.id} value={t.id}>{t.name} (효율 {(t.efficiency * 100).toFixed(0)}%)</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <ChevronRight className="w-4 h-4 text-slate-400 rotate-90" />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="relative">
+                  <select 
+                    value={selectedSlingId}
+                    onChange={(e) => setSelectedSlingId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-semibold appearance-none"
+                  >
+                    {(beltType === 'web' ? WEB_BELTS : ROUND_SLINGS).map(s => (
+                      <option key={s.id} value={s.id}>{s.width} - {(s.swl/1000).toFixed(0)}ton</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <ChevronRight className="w-4 h-4 text-slate-400 rotate-90" />
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                 <span className="text-xs font-bold text-slate-500">파단하중</span>
                 <span className="text-sm font-black text-slate-700">
-                  {(beltType === 'web' ? WEB_BELTS : ROUND_SLINGS).find(s => s.id === selectedSlingId)?.breakingLoad} ton
+                  {(() => {
+                    let slingList = WEB_BELTS;
+                    if (beltType === 'web') slingList = WEB_BELTS;
+                    else if (beltType === 'round') slingList = ROUND_SLINGS;
+                    else slingList = wireRopeType === '6X37_FC' ? WIRE_ROPES_6X37_FC : WIRE_ROPES_6X4_IWRC;
+                    return slingList.find(s => s.id === selectedSlingId)?.breakingLoad;
+                  })()} ton
                 </span>
               </div>
             </div>
@@ -778,14 +916,14 @@ export default function App() {
                   <div className="h-px bg-slate-200/50 w-full my-1" />
                   
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">가닥당 계산 하중</span>
+                    <span className="text-slate-500 font-medium">벨트 1개당 계산 하중</span>
                     <span className={`text-xl font-black ${isSafe ? 'text-emerald-900' : 'text-rose-900'}`}>
                       {(tension / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} <small className="text-xs">ton</small>
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <div className="flex flex-col">
-                      <span className="text-slate-500 font-medium">시스템 정격 하중 (SWL)</span>
+                      <span className="text-slate-500 font-medium">{beltType === 'wire' ? '안전 하중' : '시스템 정격 하중 (SWL)'}</span>
                       <span className="text-[10px] text-slate-400 font-bold italic">가장 약한 도구 기준: {weakestLink}</span>
                     </div>
                     <span className="font-bold text-slate-700">
@@ -801,9 +939,11 @@ export default function App() {
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 {machineType === '지게차' 
                   ? `총 중량이 지게차 허용 하중(${(machineCapacity * 0.85).toFixed(2)}ton)을 초과합니다.`
-                  : weakestLink === '기계 정격 하중 초과 (안전율 고려)'
-                    ? `(총 중량 + 0.5)t이 기계 재원(${machineCapacity}t)의 90%를 초과합니다.`
-                    : `계산된 하중이 ${weakestLink}의 정격 하중을 초과합니다. 슬링벨트 규격을 높이거나 각도를 조절하세요.`}
+                  : weakestLink === '크레인 양중 능력 초과'
+                    ? `(총 중량 + 0.5)t이 최대 양중 능력(${(maxLiftingCapacity * 0.7).toFixed(2)}t, 70% 기준)을 초과합니다.`
+                    : weakestLink === '기계 정격 하중 초과 (안전율 고려)'
+                      ? `(총 중량 + 0.5)t이 기계 재원(${machineCapacity}t)의 90%를 초과합니다.`
+                      : `계산된 하중이 ${weakestLink}의 정격 하중을 초과합니다. ${beltType === 'wire' ? '와이어로프' : '슬링벨트'} 규격을 높이거나 각도를 조절하세요.`}
               </div>
             )}
           </motion.div>
@@ -812,21 +952,24 @@ export default function App() {
         {/* Safety Tips */}
         <div className="bg-slate-800 rounded-2xl p-5 text-white">
           <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
-            <Info className="w-4 h-4 text-indigo-400" /> 현장 안전 지침
+            <div className="bg-indigo-500/20 p-1 rounded">
+              <Info className="w-4 h-4 text-indigo-400" />
+            </div>
+            현장 안전 지침
           </h3>
-          <ul className="text-xs space-y-2 text-slate-300 font-medium">
-            <li className="flex gap-2">
-              <ChevronRight className="w-3 h-3 text-indigo-400 shrink-0 mt-0.5" />
-              1. 중량물 취급 작업 전 하중 검토를 필수적으로 실시하고 부적합 판정 시 조건을 변경하여 현장에 적용하세요
-            </li>
-            <li className="flex gap-2">
-              <ChevronRight className="w-3 h-3 text-indigo-400 shrink-0 mt-0.5" />
-              2. 작업에 사용되는 모든 도구는 작업 전에 점검을 실시하세요
-            </li>
-            <li className="flex gap-2">
-              <ChevronRight className="w-3 h-3 text-indigo-400 shrink-0 mt-0.5" />
-              3. 조금의 손상이라도 있는 경우 사용을 금지하며, 신호수 배치를 철저히 하세요
-            </li>
+          <ul className="space-y-2.5">
+            {[
+              "인양물 하부에 작업자 출입을 엄격히 금지합니다.",
+              "슬링벨트의 마모, 손상 여부를 매일 점검하십시오.",
+              "인양 시 급격한 가속이나 제동을 피하십시오.",
+              "신호수는 지정된 위치에서 명확한 수신호를 보냅니다.",
+              "바람이 강할 경우(10m/s 이상) 작업을 중지하십시오."
+            ].map((tip, idx) => (
+              <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-300 leading-relaxed">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                {tip}
+              </li>
+            ))}
           </ul>
         </div>
       </main>
