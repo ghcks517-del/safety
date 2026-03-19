@@ -189,12 +189,12 @@ export default function App() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 pt-6 pb-2">
           <div className="flex items-center gap-3 mb-6">
-            <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
+            <div className="bg-orange-500 p-2 rounded-xl shadow-lg shadow-orange-200">
               <Calculator className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">현장 안전 계산기</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Safety Calculator</p>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">Safety 계산기</h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Safety Calculator</p>
             </div>
           </div>
 
