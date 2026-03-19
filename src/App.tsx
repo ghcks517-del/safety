@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Calculator, AlertTriangle, CheckCircle2, Info, ChevronRight, Settings2, Link as LinkIcon, Layers, Anchor, CircleDot, Box } from 'lucide-react';
+import { Calculator, AlertTriangle, CheckCircle2, Info, ChevronRight, Settings2, Link as LinkIcon, Layers, Anchor, CircleDot, Box, Wind } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WEB_BELTS, ROUND_SLINGS, SHACKLES, EYEBOLTS, WIRE_ROPES_6X37_FC, WIRE_ROPES_6X4_IWRC } from './constants';
+import VentilationCalculatorView from './components/VentilationCalculatorView';
 
 const SLING_METHODS = [
   { id: 'straight', name: '일자 견인', factor: 1.0 },
@@ -43,6 +44,7 @@ const TENSION_FACTORS: Record<number, number> = {
 };
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<'lifting' | 'ventilation'>('lifting');
   const [weight, setWeight] = useState<number>(1.0);
   const [machineType, setMachineType] = useState<string>('천장크레인');
   const [machineCapacity, setMachineCapacity] = useState<number>(5);
@@ -185,20 +187,57 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-md mx-auto px-4 py-6 flex items-center gap-3">
-          <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
-            <Calculator className="w-6 h-6 text-white" />
+        <div className="max-w-md mx-auto px-4 pt-6 pb-2">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-200">
+              <Calculator className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">현장 안전 계산기</h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Safety Calculator</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">중량물 하중검토 계산기</h1>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lifting Safety Calculator</p>
+
+          {/* Tab Navigation */}
+          <div className="flex p-1 bg-slate-100 rounded-xl">
+            <button
+              onClick={() => setActiveTab('lifting')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'lifting'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Layers className="w-4 h-4" />
+              중량물 하중검토
+            </button>
+            <button
+              onClick={() => setActiveTab('ventilation')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                activeTab === 'ventilation'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Wind className="w-4 h-4" />
+              밀폐공간 환기량
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 pt-6 space-y-6">
-        {/* Visual Guide */}
-        {machineType !== '지게차' && (
+      <main className="max-w-md mx-auto">
+        <AnimatePresence mode="wait">
+          {activeTab === 'lifting' ? (
+            <motion.div
+              key="lifting"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="px-4 pt-6 space-y-6"
+            >
+              {/* Visual Guide */}
+              {machineType !== '지게차' && (
           <div className="space-y-4">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
             <div className="flex justify-between items-end mb-4">
@@ -972,7 +1011,19 @@ export default function App() {
             ))}
           </ul>
         </div>
-      </main>
+      </motion.div>
+    ) : (
+      <motion.div
+        key="ventilation"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+      >
+        <VentilationCalculatorView />
+      </motion.div>
+    )}
+  </AnimatePresence>
+</main>
     </div>
   );
 }

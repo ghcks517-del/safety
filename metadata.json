@@ -1,5 +1,5 @@
 {
-  "name": "Remix: 중량물 하중 계산기",
-  "description": "중량물 취급 작업 전 하중 검토 및 안전성 판정을 위한 계산기입니다.",
+  "name": "현장 안전 계산기",
+  "description": "중량물 하중검토 및 밀폐공간 환기량 계산을 위한 현장 안전 계산기입니다.",
   "requestFramePermissions": []
 }
