@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Calculator, AlertTriangle, CheckCircle2, Info, ChevronRight, Settings2, Link as LinkIcon, Layers, Anchor, CircleDot, Box, Wind, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calculator, AlertTriangle, CheckCircle2, Info, ChevronRight, Settings2, Link as LinkIcon, Layers, Anchor, CircleDot, Box, Wind } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WEB_BELTS, ROUND_SLINGS, SHACKLES, EYEBOLTS, WIRE_ROPES_6X37_FC, WIRE_ROPES_6X4_IWRC } from './constants';
 import VentilationCalculatorView from './components/VentilationCalculatorView';
@@ -45,46 +45,6 @@ const TENSION_FACTORS: Record<number, number> = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'lifting' | 'ventilation'>('lifting');
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isAppInstalled, setIsAppInstalled] = useState(false);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    const handleAppInstalled = () => {
-      setDeferredPrompt(null);
-      setIsAppInstalled(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsAppInstalled(true);
-    }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      // If prompt is not available, show a message for iOS or other browsers
-      alert('바탕화면에 추가하려면 브라우저 메뉴에서 "홈 화면에 추가"를 선택해주세요.');
-      return;
-    }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
-  };
-
   const [weight, setWeight] = useState<number>(1.0);
   const [machineType, setMachineType] = useState<string>('천장크레인');
   const [machineCapacity, setMachineCapacity] = useState<number>(5);
@@ -237,19 +197,6 @@ export default function App() {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Safety Calculator</p>
             </div>
           </div>
-
-          {/* App Download Link */}
-          {!isAppInstalled && (
-            <div className="mb-4 flex justify-end">
-              <button 
-                onClick={handleInstallClick}
-                className="text-[11px] font-bold text-orange-600 flex items-center gap-1.5 hover:text-orange-700 transition-colors bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100"
-              >
-                <Download className="w-3 h-3" />
-                앱으로 다운받기
-              </button>
-            </div>
-          )}
 
           {/* Tab Navigation */}
           <div className="flex p-1 bg-slate-100 rounded-xl">
