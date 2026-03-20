@@ -4,14 +4,20 @@
   "description": "중량물 하중검토 및 밀폐공간 환기량 계산을 위한 Safety 계산기",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#4f46e5",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ]
 }
