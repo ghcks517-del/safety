@@ -193,7 +193,7 @@ export default function App() {
               <Calculator className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">Safety 계산기</h1>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">SafetyLoad</h1>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Safety Calculator</p>
             </div>
           </div>

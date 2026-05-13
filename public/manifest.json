@@ -1,7 +1,7 @@
 {
-  "name": "Safety 계산기",
-  "short_name": "Safety계산기",
-  "description": "중량물 하중검토 및 밀폐공간 환기량 계산을 위한 Safety 계산기",
+  "name": "SafetyLoad",
+  "short_name": "SafetyLoad",
+  "description": "중량물 하중검토 및 밀폐공간 환기량 계산을 위한 SafetyLoad",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
