@@ -1,5 +1,5 @@
 {
-  "name": "SafetyLoad",
-  "description": "중량물 하중검토 및 밀폐공간 환기량 계산을 위한 SafetyLoad입니다.",
+  "name": "현장안전 계산기",
+  "description": "중량물 하중검토 및 밀폐공간 환기량 계산을 위한 현장안전 계산기입니다.",
   "requestFramePermissions": []
 }

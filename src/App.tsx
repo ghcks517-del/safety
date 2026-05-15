@@ -70,6 +70,7 @@ export default function App() {
   const [slingSafety, setSlingSafety] = useState<{ isSafe: boolean; reason: string }>({ isSafe: true, reason: '' });
   const [shackleSafety, setShackleSafety] = useState<{ isSafe: boolean; reason: string; isUsed: boolean }>({ isSafe: true, reason: '', isUsed: false });
   const [eyeboltSafety, setEyeboltSafety] = useState<{ isSafe: boolean; reason: string; isUsed: boolean }>({ isSafe: true, reason: '', isUsed: false });
+  const [machineSafety, setMachineSafety] = useState<{ isSafe: boolean; reason: string }>({ isSafe: true, reason: '' });
 
   useEffect(() => {
     // 1. Calculate System Capacity (Weakest Link)
@@ -93,6 +94,13 @@ export default function App() {
     if (machineType === '지게차') {
       const forkliftSafetyLimit = machineCapacity * 0.85;
       const isForkliftSafe = forkliftSafetyLimit > weight;
+      setMachineSafety({
+        isSafe: isForkliftSafe,
+        reason: isForkliftSafe ? '' : '지게차 용량을 높이거나 수하물 중량을 줄이세요.'
+      });
+      setSlingSafety({ isSafe: true, reason: '' });
+      setShackleSafety({ isSafe: true, reason: '', isUsed: false });
+      setEyeboltSafety({ isSafe: true, reason: '', isUsed: false });
       setIsSafe(isForkliftSafe);
       setWeakestLink('지게차 허용 하중 (85% 기준)');
       setSystemCapacity(forkliftSafetyLimit * 1000);
@@ -112,7 +120,7 @@ export default function App() {
       const isSlingSafe = calculatedSystemCapacityTon > (weight + safetyMargin);
       setSlingSafety({ 
         isSafe: isSlingSafe, 
-        reason: isSlingSafe ? '' : `안전 하중(${(calculatedSystemCapacityTon).toFixed(2)}t)이 총중량(${weight}t)을 초과하지 못함` 
+        reason: isSlingSafe ? '' : '슬링벨트(와이어) 규격을 높이거나 줄걸이 각도를 넓히세요.' 
       });
 
       const shackleLiftingAngle = 90 - (180 - angle) / 2;
@@ -131,7 +139,7 @@ export default function App() {
       setShackleSafety({
         isSafe: isShackleSafe,
         isUsed: useShackle,
-        reason: !useShackle ? '' : shackleLiftingAngle >= 91 ? '인양각도 91° 이상' : !isShackleSafe ? `허용하중(${shackleCapacityTon.toFixed(2)}t) 미달` : ''
+        reason: !useShackle ? '' : shackleLiftingAngle >= 91 ? '줄걸이 각도를 90도 이하로 넓히세요.' : !isShackleSafe ? '더 높은 규격의 샤클을 사용하세요.' : ''
       });
 
       // Eyebolt Adjustment Factor
@@ -147,15 +155,17 @@ export default function App() {
       setEyeboltSafety({
         isSafe: isEyeboltSafe,
         isUsed: useEyebolt,
-        reason: !useEyebolt ? '' : shackleLiftingAngle >= 91 ? '인양각도 91° 이상' : !isEyeboltSafe ? `허용하중(${eyeboltCapacityTon.toFixed(2)}t) 미달` : ''
+        reason: !useEyebolt ? '' : shackleLiftingAngle >= 91 ? '줄걸이 각도를 90도 이하로 넓히세요.' : !isEyeboltSafe ? '더 높은 규격의 아이볼트를 사용하세요.' : ''
       });
 
-      let isMachineSafe = false;
-      if (machineType === '이동식 크레인') {
-        isMachineSafe = (maxLiftingCapacity * 0.7) > (weight + 0.5);
-      } else {
-        isMachineSafe = (weight + safetyMargin) <= machineCapacity * 0.9;
-      }
+      const isMachineSafe = machineType === '이동식 크레인' 
+        ? (maxLiftingCapacity * 0.7) > (weight + 0.5)
+        : (weight + safetyMargin) <= machineCapacity * 0.9;
+      
+      setMachineSafety({
+        isSafe: isMachineSafe,
+        reason: isMachineSafe ? '' : machineType === '이동식 크레인' ? '크레인 규격을 높이거나 작업 반경을 줄이세요.' : '기계 정격 하중을 높이거나 수하물 중량을 줄이세요.'
+      });
       
       setIsSafe(isSlingSafe && isMachineSafe && isShackleSafe && isEyeboltSafe);
       
@@ -193,8 +203,8 @@ export default function App() {
               <Calculator className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">SafetyLoad</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Safety Calculator</p>
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">현장안전 계산기</h1>
+              <p className="text-[11px] font-bold text-slate-500 tracking-tight">(하중검토 & 환기량)</p>
             </div>
           </div>
 
@@ -803,7 +813,7 @@ export default function App() {
                       ? 'bg-rose-100 border-rose-200 text-rose-900' 
                       : 'bg-indigo-50 border-indigo-100 text-indigo-900'
                   }`}>
-                    <span className="text-xs font-bold">인양각도</span>
+                    <span className="text-xs font-bold">줄걸이 각도</span>
                     <div className="flex flex-col items-end">
                       <span className="text-sm font-black">
                         {(90 - (180 - (machineType === '지게차' ? 90 : angle)) / 2).toFixed(1)}°
@@ -865,7 +875,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex justify-between items-center bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                    <span className="text-xs font-bold text-indigo-700">인양각도</span>
+                    <span className="text-xs font-bold text-indigo-700">줄걸이 각도</span>
                     <span className="text-sm font-black text-indigo-900">
                       {(90 - (180 - (machineType === '지게차' ? 90 : angle)) / 2).toFixed(1)}°
                     </span>
@@ -919,6 +929,17 @@ export default function App() {
                 </div>
               ) : (
                 <div className="space-y-2.5">
+                  {/* Machine Capacity Safety */}
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 font-medium">기계 제원 합격 여부</span>
+                    <div className="flex flex-col items-end">
+                      <span className={`font-bold ${machineSafety.isSafe ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {machineSafety.isSafe ? '합격' : '불합격'}
+                      </span>
+                      {!machineSafety.isSafe && <span className="text-[10px] text-rose-500 font-medium">{machineSafety.reason}</span>}
+                    </div>
+                  </div>
+
                   {/* Belt Safety */}
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-500 font-medium">벨트 사용 합격 여부</span>
@@ -951,24 +972,6 @@ export default function App() {
                       {eyeboltSafety.isUsed && !eyeboltSafety.isSafe && <span className="text-[10px] text-rose-500 font-medium">{eyeboltSafety.reason}</span>}
                     </div>
                   </div>
-
-                  <div className="h-px bg-slate-200/50 w-full my-1" />
-                  
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-500 font-medium">벨트 1개당 계산 하중</span>
-                    <span className={`text-xl font-black ${isSafe ? 'text-emerald-900' : 'text-rose-900'}`}>
-                      {(tension / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} <small className="text-xs">ton</small>
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <div className="flex flex-col">
-                      <span className="text-slate-500 font-medium">{beltType === 'wire' ? '안전 하중' : '시스템 정격 하중 (SWL)'}</span>
-                      <span className="text-[10px] text-slate-400 font-bold italic">가장 약한 도구 기준: {weakestLink}</span>
-                    </div>
-                    <span className="font-bold text-slate-700">
-                      {(systemCapacity / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} <small className="text-xs">ton</small>
-                    </span>
-                  </div>
                 </div>
               )}
             </div>
@@ -976,13 +979,15 @@ export default function App() {
             {!isSafe && (
               <div className="mt-4 p-3 bg-rose-100 rounded-xl text-xs text-rose-800 font-medium leading-relaxed flex gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                {machineType === '지게차' 
-                  ? `총 중량이 지게차 허용 하중(${(machineCapacity * 0.85).toFixed(2)}ton)을 초과합니다.`
-                  : weakestLink === '크레인 양중 능력 초과'
-                    ? `(총 중량 + 0.5)t이 최대 양중 능력(${(maxLiftingCapacity * 0.7).toFixed(2)}t, 70% 기준)을 초과합니다.`
-                    : weakestLink === '기계 정격 하중 초과 (안전율 고려)'
-                      ? `(총 중량 + 0.5)t이 기계 재원(${machineCapacity}t)의 90%를 초과합니다.`
-                      : `계산된 하중이 ${weakestLink}의 정격 하중을 초과합니다. ${beltType === 'wire' ? '와이어로프' : '슬링벨트'} 규격을 높이거나 각도를 조절하세요.`}
+                <div className="flex flex-col gap-1">
+                  <p className="font-bold">안전 확보를 위한 조치 사항:</p>
+                  <ul className="list-disc ml-4 space-y-0.5">
+                    {!machineSafety.isSafe && <li>{machineSafety.reason}</li>}
+                    {!slingSafety.isSafe && <li>{slingSafety.reason}</li>}
+                    {shackleSafety.isUsed && !shackleSafety.isSafe && <li>{shackleSafety.reason}</li>}
+                    {eyeboltSafety.isUsed && !eyeboltSafety.isSafe && <li>{eyeboltSafety.reason}</li>}
+                  </ul>
+                </div>
               </div>
             )}
           </motion.div>
